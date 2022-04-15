@@ -29,9 +29,6 @@ private:
 	BITMAPINFO	m_BitmapInfo;
 	SCROLLINFO	m_ScrollInfo;
 
-	HDC			m_hDC;
-	HDROP		m_hDrop;
-
 	COLORREF	m_bkColor;
 
 protected: // 仅从序列化创建

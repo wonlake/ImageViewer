@@ -83,17 +83,22 @@ int CImageViewerTreeView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 void CImageViewerTreeView::OnDropFiles(HDROP hDropInfo)
 {
 	// TODO:  在此添加消息处理程序代码和/或调用默认值
-	static TCHAR FileName[1024] = { 0 };
-	::DragQueryFile(hDropInfo, 0, FileName, sizeof(FileName));
+	CString strFile;
+	UINT nFilesCount = DragQueryFile(hDropInfo, INFINITE, NULL, 0);
+	for (UINT i = 0; i < nFilesCount; i++)
+	{ 
+		auto pathLen = DragQueryFile(hDropInfo, i, strFile.GetBuffer(MAX_PATH), MAX_PATH);
+		strFile.ReleaseBuffer(pathLen);
+	}
 
-	CFile File(FileName, CFile::modeRead);
+	CFile File(strFile, CFile::modeRead);
 
-	ULONGLONG lFileSize = File.GetLength();
-	long file_size = lFileSize;
+	auto lFileSize = File.GetLength();
+	auto file_size = lFileSize;
 	BYTE* pData = new BYTE[file_size];
-	File.Read(pData, file_size);
+	File.Read(pData, (UINT)file_size);
 
-	int name_size = _tcslen(FileName);
+	auto name_size = strFile.GetLength();
 	long iNewDataSize = 0;
 
 	CTreeCtrl& fileListTree = GetTreeCtrl();
@@ -193,7 +198,7 @@ void CImageViewerTreeView::OnDropFiles(HDROP hDropInfo)
 			if (m_mapFiles.size() > 0)
 			{
 				CString strTitle = _T(" - ImageViewerMJ");
-				strTitle = FileName + strTitle;
+				strTitle = strFile + strTitle;
 				SetWindowText(strTitle);
 
 				if (!fileListTree.IsWindowVisible())

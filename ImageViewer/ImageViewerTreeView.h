@@ -1,7 +1,7 @@
 #pragma once
 
 #include <map>
-
+#include <string>
 // CImageViewerMJTreeView йсм╪
 
 class CImageViewerTreeView : public CTreeView

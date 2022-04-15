@@ -15,11 +15,7 @@
 #define FREEIMAGE_LIB
 #include <freeimage.h>
 
-#ifdef _DEBUG
-#pragma comment( lib, "freeimage_d.lib" )
-#else
-#pragma comment( lib, "freeimage.lib" )
-#endif
+#pragma comment( lib, "libfreeimage.lib" )
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -105,22 +101,20 @@ void CImageViewerView::OnDraw(CDC* pDC)
 	DWORD dwWindowWidth = rect.right - rect.left;
 	DWORD dwWindowHeight = rect.bottom - rect.top;
 
-	m_hDC = pDC->m_hDC;
-
 	if (m_pImageData == NULL)
 	{
-		Rectangle(m_hDC, rect.left, rect.top, rect.right, rect.bottom);
-		SetTextAlign(m_hDC, TA_CENTER | TA_BASELINE);
+		pDC->Rectangle(rect.left, rect.top, rect.right, rect.bottom);
+		pDC->SetTextAlign(TA_CENTER | TA_BASELINE);
 		LPCTSTR pszText = _T("请将图片文件拖到这里!");
 
-		TextOut(m_hDC,
+		pDC->TextOut(
 			(rect.left + rect.right) / 2,
 			(rect.top + rect.bottom) / 2,
 			pszText,
 			lstrlen(pszText));
 	}
 
-	SetDIBitsToDevice(m_hDC,
+	SetDIBitsToDevice(pDC->GetSafeHdc(),
 		m_nLBlank - m_iXScrollPos,
 		m_nTBlank - m_iYScrollPos,
 		m_dwImageWidth,
@@ -131,26 +125,27 @@ void CImageViewerView::OnDraw(CDC* pDC)
 		&m_BitmapInfo,
 		DIB_RGB_COLORS);
 
-	HDC hMemDC = CreateCompatibleDC(m_hDC);
-	HBITMAP hTempBmp = CreateCompatibleBitmap(m_hDC,
-		dwWindowWidth, dwWindowHeight);
+	CDC memDC;
+	memDC.CreateCompatibleDC(pDC);
+	CBitmap tempBmp;
+	tempBmp.CreateCompatibleBitmap(pDC, dwWindowWidth, dwWindowHeight);
 
-	SelectObject(hMemDC, hTempBmp);
+	memDC.SelectObject(tempBmp);
 	if (m_nLBlank > 0 && m_nTBlank > 0)
-		Rectangle(hMemDC, rect.left, rect.top, rect.right, rect.bottom);
+		memDC.Rectangle(rect.left, rect.top, rect.right, rect.bottom);
 	else
-		FillRect(hMemDC, &rect, NULL);
+		memDC.FillRect(&rect, NULL);
 
-	BitBlt(hMemDC, m_nLBlank, m_nTBlank,
+	memDC.BitBlt(m_nLBlank, m_nTBlank,
 		dwWindowWidth - m_nLBlank * 2 - m_nLBlank % 2,
-		dwWindowHeight - m_nTBlank * 2 - m_nTBlank % 2, m_hDC,
+		dwWindowHeight - m_nTBlank * 2 - m_nTBlank % 2, pDC,
 		m_nLBlank, m_nTBlank, SRCCOPY);
 
-	BitBlt(m_hDC, 0, 0, dwWindowWidth, dwWindowHeight, hMemDC,
+	pDC->BitBlt(0, 0, dwWindowWidth, dwWindowHeight, &memDC,
 		0, 0, SRCCOPY);
 
-	DeleteObject(hTempBmp);
-	DeleteObject(hMemDC);
+	tempBmp.DeleteObject();
+	memDC.DeleteDC();
 }
 
 
@@ -556,9 +551,8 @@ void CImageViewerView::OnDropFiles(HDROP hDropInfo)
 	// TODO:  在此添加消息处理程序代码和/或调用默认值
 
 	TCHAR szFileName[1024];
-	m_hDrop = hDropInfo;
 
-	::DragQueryFile(m_hDrop, 0, szFileName, sizeof(szFileName));
+	::DragQueryFile(hDropInfo, 0, szFileName, sizeof(szFileName));
 	_bstr_t strFileName = szFileName;
 	LoadImageFromFile(strFileName);
 
@@ -630,7 +624,7 @@ BOOL CImageViewerView::LoadImageFromMemory(BYTE* pData, LONG iDataSize)
 			{
 				LOGBRUSH brush;
 				DWORD dwDataIndex = iRowPitch * m + n * 4;
-				GetObject((HANDLE)GetClassLong(m_hWnd, GCL_HBRBACKGROUND),
+				GetObject((HANDLE)GetClassLong(m_hWnd, GCLP_HBRBACKGROUND),
 					sizeof(LOGBRUSH), &brush);
 				brush.lbColor = m_bkColor;
 
