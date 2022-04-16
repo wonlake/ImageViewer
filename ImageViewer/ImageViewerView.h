@@ -3,12 +3,15 @@
 //
 
 #pragma once
+#include <memory>
 
 class CImageViewerDoc;
 class CImageViewerView : public CView
 {
 private:
-	BYTE*		m_pImageData;
+	CString m_FileName = TEXT("");
+	std::shared_ptr<BYTE[]> m_pImageData;
+	
 	DWORD		m_dwImageWidth;
 	DWORD		m_dwImageHeight;
 
@@ -42,7 +45,7 @@ public:
 // 操作
 public:
 	BOOL LoadImageFromMemory(BYTE* pData, LONG iDataSize);
-	BOOL LoadImageFromFile(TCHAR* pszFileName);
+	BOOL LoadImageFromFile(const TCHAR* pszFileName);
 	VOID UpdateScrollBarInfo();
 
 // 重写
@@ -76,6 +79,10 @@ public:
 	afx_msg void OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 	afx_msg void OnDropFiles(HDROP hDropInfo);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+	afx_msg void OnFileNew();
+//	virtual void OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView);
+//	virtual void OnActivateFrame(UINT nState, CFrameWnd* pDeactivateFrame);
+	virtual void OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHint*/);
 };
 
 #ifndef _DEBUG  // ImageViewerView.cpp 中的调试版本

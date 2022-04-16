@@ -12,10 +12,13 @@
 #include "ImageViewerDoc.h"
 #include "ImageViewerView.h"
 
-#define FREEIMAGE_LIB
 #include <freeimage.h>
 
+#ifdef _DEBUG
+#pragma comment( lib, "libfreeimage_d.lib" )
+#else
 #pragma comment( lib, "libfreeimage.lib" )
+#endif
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -38,6 +41,7 @@ BEGIN_MESSAGE_MAP(CImageViewerView, CView)
 	ON_WM_VSCROLL()
 	ON_WM_DROPFILES()
 	ON_WM_ERASEBKGND()
+	ON_COMMAND(ID_FILE_NEW, &CImageViewerView::OnFileNew)
 END_MESSAGE_MAP()
 
 // CImageViewerView 构造/析构
@@ -45,7 +49,6 @@ END_MESSAGE_MAP()
 CImageViewerView::CImageViewerView()
 {
 	// TODO: 在此处添加构造代码
-	m_pImageData = NULL;
 	m_dwImageWidth = 0;
 	m_dwImageHeight = 0;
 
@@ -65,16 +68,14 @@ CImageViewerView::CImageViewerView()
 
 	m_bkColor = 0xff8f8f8f;
 
+	m_BitmapInfo = { 0 };
+	m_ScrollInfo = { 0 };
+
 	FreeImage_Initialise();
 }
 
 CImageViewerView::~CImageViewerView()
 {
-	if (m_pImageData != NULL)
-	{
-		delete[]m_pImageData;
-		m_pImageData = NULL;
-	}
 	FreeImage_DeInitialise();
 }
 
@@ -121,7 +122,7 @@ void CImageViewerView::OnDraw(CDC* pDC)
 		m_dwImageHeight,
 		0, 0,
 		0, m_dwImageHeight,
-		m_pImageData,
+		m_pImageData.get(),
 		&m_BitmapInfo,
 		DIB_RGB_COLORS);
 
@@ -199,8 +200,6 @@ int CImageViewerView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	// TODO:  在此添加您专用的创建代码
 	::DragAcceptFiles(m_hWnd, TRUE);
 
-	//RegisterDragDrop(m_hWnd, this);
-
 	m_ScrollInfo.cbSize = sizeof(m_ScrollInfo);
 	m_ScrollInfo.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
 	m_ScrollInfo.nMin = 0;
@@ -226,7 +225,6 @@ int CImageViewerView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	return 0;
 }
-
 
 void CImageViewerView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
@@ -292,7 +290,6 @@ void CImageViewerView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar
 	CView::OnHScroll(nSBCode, nPos, pScrollBar);
 }
 
-
 BOOL CImageViewerView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 	// TODO:  在此添加消息处理程序代码和/或调用默认值
@@ -332,7 +329,6 @@ BOOL CImageViewerView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	return CView::OnMouseWheel(nFlags, zDelta, pt);
 }
 
-
 void CImageViewerView::OnSize(UINT nType, int cx, int cy)
 {
 	CView::OnSize(nType, cx, cy);
@@ -346,7 +342,6 @@ void CImageViewerView::OnSize(UINT nType, int cx, int cy)
 
 	UpdateScrollBarInfo();
 }
-
 
 void CImageViewerView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
@@ -412,7 +407,7 @@ void CImageViewerView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar
 	CView::OnVScroll(nSBCode, nPos, pScrollBar);
 }
 
-BOOL CImageViewerView::LoadImageFromFile(TCHAR* lpFileName)
+BOOL CImageViewerView::LoadImageFromFile(const TCHAR* lpFileName)
 {
 	// TODO: 在此添加实现代码
 	FIBITMAP         *pFiBitmap = NULL;
@@ -425,7 +420,7 @@ BOOL CImageViewerView::LoadImageFromFile(TCHAR* lpFileName)
 	FREE_IMAGE_FORMAT FiFormat = FreeImage_GetFileTypeU((LPCTSTR)strFileName, 0);
 
 	if (FiFormat == FIF_UNKNOWN)
-		return S_FALSE;
+		return FALSE;
 
 	if (FiFormat == FIF_JPEG)
 		pFiBitmap = FreeImage_LoadU(FiFormat, (LPCTSTR)strFileName, JPEG_CMYK);
@@ -489,13 +484,10 @@ BOOL CImageViewerView::LoadImageFromFile(TCHAR* lpFileName)
 	m_dwImageWidth = iWidth;
 	m_dwImageHeight = iHeight;
 
-	if (m_pImageData)
-		delete[] m_pImageData;
-
-	m_pImageData = new BYTE[imageSize];
+	m_pImageData.reset(new BYTE[imageSize]);
 
 	BYTE* pImageData = FreeImage_GetBits(pFiBitmap);
-	memcpy(m_pImageData, pImageData, imageSize);
+	memcpy(m_pImageData.get(), pImageData, imageSize);
 
 	if (bMultiBitmap)
 	{
@@ -515,18 +507,19 @@ BOOL CImageViewerView::LoadImageFromFile(TCHAR* lpFileName)
 		//if (GetObject(hBrush, sizeof(LOGBRUSH), &brush))
 		//	BgColor = brush.lbColor;
 
+		auto pBuffer = m_pImageData.get();
 		for (DWORD m = 0; m < m_dwImageHeight; m++)
 		{
 			for (DWORD n = 0; n < m_dwImageWidth; n++)
 			{
 				DWORD dwDataIndex = iRowPitch * m + n * 4;
 
-				m_pImageData[dwDataIndex] = m_pImageData[dwDataIndex] * m_pImageData[dwDataIndex + 3] / 255 +
-					(255 - m_pImageData[dwDataIndex + 3]) * GetBValue(BgColor) / 255;
-				m_pImageData[dwDataIndex + 1] = m_pImageData[dwDataIndex + 1] * m_pImageData[dwDataIndex + 3] / 255 +
-					(255 - m_pImageData[dwDataIndex + 3]) * GetGValue(BgColor) / 255;
-				m_pImageData[dwDataIndex + 2] = m_pImageData[dwDataIndex + 2] * m_pImageData[dwDataIndex + 3] / 255 +
-					(255 - m_pImageData[dwDataIndex + 3]) * GetRValue(BgColor) / 255;
+				pBuffer[dwDataIndex] = pBuffer[dwDataIndex] * pBuffer[dwDataIndex + 3] / 255 +
+					(255 - pBuffer[dwDataIndex + 3]) * GetBValue(BgColor) / 255;
+				pBuffer[dwDataIndex + 1] = pBuffer[dwDataIndex + 1] * pBuffer[dwDataIndex + 3] / 255 +
+					(255 - pBuffer[dwDataIndex + 3]) * GetGValue(BgColor) / 255;
+				pBuffer[dwDataIndex + 2] = pBuffer[dwDataIndex + 2] * pBuffer[dwDataIndex + 3] / 255 +
+					(255 - pBuffer[dwDataIndex + 3]) * GetRValue(BgColor) / 255;
 			}
 		}
 	}
@@ -543,18 +536,22 @@ BOOL CImageViewerView::LoadImageFromFile(TCHAR* lpFileName)
 
 	UpdateScrollBarInfo();
 
-	return S_OK;
+	return TRUE;
 }
 
 void CImageViewerView::OnDropFiles(HDROP hDropInfo)
 {
 	// TODO:  在此添加消息处理程序代码和/或调用默认值
 
-	TCHAR szFileName[1024];
+	CString strFile;
+	UINT nFilesCount = DragQueryFile(hDropInfo, INFINITE, NULL, 0);
+	for (UINT i = 0; i < nFilesCount; i++)
+	{
+		auto pathLen = DragQueryFile(hDropInfo, i, strFile.GetBuffer(MAX_PATH), MAX_PATH);
+		strFile.ReleaseBuffer(pathLen);
+	}
 
-	::DragQueryFile(hDropInfo, 0, szFileName, sizeof(szFileName));
-	_bstr_t strFileName = szFileName;
-	LoadImageFromFile(strFileName);
+	LoadImageFromFile(strFile);
 
 	::SetFocus(m_hWnd);
 }
@@ -573,7 +570,7 @@ BOOL CImageViewerView::LoadImageFromMemory(BYTE* pData, LONG iDataSize)
 	if (FiFormat == FIF_UNKNOWN)
 	{
 		FreeImage_CloseMemory(fi_mem);
-		return S_FALSE;
+		return FALSE;
 	}
 
 	if (FiFormat == FIF_JPEG)
@@ -597,13 +594,10 @@ BOOL CImageViewerView::LoadImageFromMemory(BYTE* pData, LONG iDataSize)
 	m_dwImageWidth = iWidth;
 	m_dwImageHeight = iHeight;
 
-	if (m_pImageData != NULL)
-		delete[] m_pImageData;
-
-	m_pImageData = new BYTE[imageSize];
+	m_pImageData.reset(new BYTE[imageSize]);
 
 	BYTE* pImageData = FreeImage_GetBits(pFiBitmap);
-	memcpy(m_pImageData, pImageData, imageSize);
+	memcpy(m_pImageData.get(), pImageData, imageSize);
 
 	if (bMultiBitmap)
 	{
@@ -618,22 +612,19 @@ BOOL CImageViewerView::LoadImageFromMemory(BYTE* pData, LONG iDataSize)
 
 	if (bpp == 32)
 	{
+		auto pBuffer = m_pImageData.get();
 		for (DWORD m = 0; m < m_dwImageHeight; m++)
 		{
 			for (DWORD n = 0; n < m_dwImageWidth; n++)
 			{
-				LOGBRUSH brush;
 				DWORD dwDataIndex = iRowPitch * m + n * 4;
-				GetObject((HANDLE)GetClassLong(m_hWnd, GCLP_HBRBACKGROUND),
-					sizeof(LOGBRUSH), &brush);
-				brush.lbColor = m_bkColor;
 
-				m_pImageData[dwDataIndex] = m_pImageData[dwDataIndex] * m_pImageData[dwDataIndex + 3] / 255 +
-					(255 - m_pImageData[dwDataIndex + 3]) * GetBValue(brush.lbColor) / 255;
-				m_pImageData[dwDataIndex + 1] = m_pImageData[dwDataIndex + 1] * m_pImageData[dwDataIndex + 3] / 255 +
-					(255 - m_pImageData[dwDataIndex + 3]) * GetGValue(brush.lbColor) / 255;
-				m_pImageData[dwDataIndex + 2] = m_pImageData[dwDataIndex + 2] * m_pImageData[dwDataIndex + 3] / 255 +
-					(255 - m_pImageData[dwDataIndex + 3]) * GetRValue(brush.lbColor) / 255;
+				pBuffer[dwDataIndex] = pBuffer[dwDataIndex] * pBuffer[dwDataIndex + 3] / 255 +
+					(255 - pBuffer[dwDataIndex + 3]) * GetBValue(m_bkColor) / 255;
+				pBuffer[dwDataIndex + 1] = pBuffer[dwDataIndex + 1] * pBuffer[dwDataIndex + 3] / 255 +
+					(255 - pBuffer[dwDataIndex + 3]) * GetGValue(m_bkColor) / 255;
+				pBuffer[dwDataIndex + 2] = pBuffer[dwDataIndex + 2] * pBuffer[dwDataIndex + 3] / 255 +
+					(255 - pBuffer[dwDataIndex + 3]) * GetRValue(m_bkColor) / 255;
 			}
 		}
 	}
@@ -650,7 +641,7 @@ BOOL CImageViewerView::LoadImageFromMemory(BYTE* pData, LONG iDataSize)
 
 	UpdateScrollBarInfo();
 
-	return S_OK;
+	return TRUE;
 }
 
 VOID CImageViewerView::UpdateScrollBarInfo()
@@ -672,7 +663,7 @@ VOID CImageViewerView::UpdateScrollBarInfo()
 		else
 		{
 			m_iXScrollMaxPos = m_dwImageWidth > m_nWindowWidth ? m_dwImageWidth : 0;
-			m_iXScrollPos = m_iXScrollPos < m_iXScrollMaxPos - m_nWindowWidth ? m_iXScrollPos : m_iXScrollMaxPos - m_nWindowWidth;
+			m_iXScrollPos = m_iXScrollPos < m_iXScrollMaxPos - (int)m_nWindowWidth ? m_iXScrollPos : m_iXScrollMaxPos - (int)m_nWindowWidth;
 			m_ScrollInfo.cbSize = sizeof(m_ScrollInfo);
 			m_ScrollInfo.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
 			m_ScrollInfo.nMin = m_iXScrollMinPos;
@@ -696,7 +687,7 @@ VOID CImageViewerView::UpdateScrollBarInfo()
 		else
 		{
 			m_iYScrollMaxPos = m_dwImageHeight > m_nWindowHeight ? m_dwImageHeight : 0;
-			m_iYScrollPos = m_iYScrollPos < m_iYScrollMaxPos - m_nWindowHeight ? m_iYScrollPos : m_iYScrollMaxPos - m_nWindowHeight;
+			m_iYScrollPos = m_iYScrollPos < m_iYScrollMaxPos - (int)m_nWindowHeight ? m_iYScrollPos : m_iYScrollMaxPos - (int)m_nWindowHeight;
 			m_ScrollInfo.cbSize = sizeof(m_ScrollInfo);
 			m_ScrollInfo.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
 			m_ScrollInfo.nMin = m_iYScrollMinPos;
@@ -716,11 +707,45 @@ VOID CImageViewerView::UpdateScrollBarInfo()
 	::InvalidateRect(m_hWnd, NULL, TRUE);
 }
 
-
-
 BOOL CImageViewerView::OnEraseBkgnd(CDC* pDC)
 {
 	// TODO:  在此添加消息处理程序代码和/或调用默认值
 
 	return CView::OnEraseBkgnd(pDC);
+}
+
+
+void CImageViewerView::OnFileNew()
+{
+	// TODO: Add your command handler code here
+}
+
+
+//void CImageViewerView::OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView)
+//{
+//	CView::OnActivateView(bActivate, pActivateView, pDeactiveView);
+//	// TODO: Add your specialized code here and/or call the base class
+//
+//
+//}
+
+
+//void CImageViewerView::OnActivateFrame(UINT nState, CFrameWnd* pDeactivateFrame)
+//{
+//	// TODO: Add your specialized code here and/or call the base class
+//
+//	CView::OnActivateFrame(nState, pDeactivateFrame);
+//}
+
+
+void CImageViewerView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHint*/)
+{
+	// TODO: Add your specialized code here and/or call the base class
+	auto pDoc = GetDocument();
+
+	if (!pDoc->m_strFileName.IsEmpty() && pDoc->m_strFileName != m_FileName)
+	{
+		m_FileName = pDoc->m_strFileName;
+		LoadImageFromFile(m_FileName);
+	}
 }

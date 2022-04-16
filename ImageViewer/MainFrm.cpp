@@ -56,6 +56,13 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;      // 未能创建
 	}
 
+	m_wndToolBar.GetToolBarCtrl().DeleteButton(6); 
+	m_wndToolBar.GetToolBarCtrl().DeleteButton(5); 
+	m_wndToolBar.GetToolBarCtrl().DeleteButton(4);
+	m_wndToolBar.GetToolBarCtrl().DeleteButton(3);
+	m_wndToolBar.GetToolBarCtrl().DeleteButton(2);
+	m_wndToolBar.GetToolBarCtrl().DeleteButton(0);
+
 	if (!m_wndStatusBar.Create(this))
 	{
 		TRACE0("未能创建状态栏\n");
@@ -103,13 +110,13 @@ BOOL CMainFrame::OnCreateClient(LPCREATESTRUCT lpcs, CCreateContext* pContext)
 {
 	// TODO:  在此添加专用代码和/或调用基类
 	//m_wndSplitter.Create(this, 1, 2, CSize(300, 300), pContext);
-	BOOL bCreateSpltr = m_wndSplitter.CreateStatic(this, 1, 2);
+	//BOOL bCreateSpltr = m_wndSplitter.CreateStatic(this, 1, 2);
 
-	// COneView and CAnotherView are user-defined views derived from CMDIView
-	m_wndSplitter.CreateView(0, 0, RUNTIME_CLASS(CImageViewerTreeView), CSize(200, 0),
-		pContext);
-	m_wndSplitter.CreateView(0, 1, RUNTIME_CLASS(CImageViewerView), CSize(0, 0),
-		pContext);
+	//// COneView and CAnotherView are user-defined views derived from CMDIView
+	//m_wndSplitter.CreateView(0, 0, RUNTIME_CLASS(CImageViewerTreeView), CSize(1, 0),
+	//	pContext);
+	//m_wndSplitter.CreateView(0, 1, RUNTIME_CLASS(CImageViewerView), CSize(0, 0),
+	//	pContext);
 
-	return TRUE;// CFrameWnd::OnCreateClient(lpcs, pContext);
+	return CFrameWnd::OnCreateClient(lpcs, pContext);
 }

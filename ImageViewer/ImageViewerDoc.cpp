@@ -135,3 +135,16 @@ void CImageViewerDoc::Dump(CDumpContext& dc) const
 
 
 // CImageViewerDoc √¸¡Ó
+
+
+BOOL CImageViewerDoc::OnOpenDocument(LPCTSTR lpszPathName)
+{
+	if (!CDocument::OnOpenDocument(lpszPathName))
+		return FALSE;
+
+	// TODO:  Add your specialized creation code here
+	m_strFileName = lpszPathName;
+
+	UpdateAllViews(NULL);
+	return TRUE;
+}

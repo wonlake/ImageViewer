@@ -113,12 +113,14 @@ BOOL CImageViewerApp::InitInstance()
 	CCommandLineInfo cmdInfo;
 	ParseCommandLine(cmdInfo);
 
-
-
 	// 调度在命令行中指定的命令。  如果
 	// 用 /RegServer、/Register、/Unregserver 或 /Unregister 启动应用程序，则返回 FALSE。
 	if (!ProcessShellCommand(cmdInfo))
 		return FALSE;
+
+	CFileFind find;
+	if (find.FindFile(cmdInfo.m_strFileName))
+		OpenDocumentFile(cmdInfo.m_strFileName);
 
 	// 唯一的一个窗口已初始化，因此显示它并对其进行更新
 	m_pMainWnd->ShowWindow(SW_SHOW);
@@ -155,6 +157,8 @@ protected:
 // 实现
 protected:
 	DECLARE_MESSAGE_MAP()
+public:
+//	afx_msg void OnFileNew();
 };
 
 CAboutDlg::CAboutDlg() : CDialogEx(IDD_ABOUTBOX)
@@ -167,6 +171,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 }
 
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
+//	ON_COMMAND(ID_FILE_NEW, &CAboutDlg::OnFileNew)
 END_MESSAGE_MAP()
 
 // 用于运行对话框的应用程序命令
@@ -177,6 +182,3 @@ void CImageViewerApp::OnAppAbout()
 }
 
 // CImageViewerApp 消息处理程序
-
-
-
