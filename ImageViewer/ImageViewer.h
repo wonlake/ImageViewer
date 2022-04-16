@@ -19,6 +19,8 @@ class CImageViewerApp : public CWinAppEx
 public:
 	CImageViewerApp();
 
+	HCURSOR m_hCursorHand;
+	HCURSOR m_hCursorNormal;
 
 // ÖØÐ´
 public:

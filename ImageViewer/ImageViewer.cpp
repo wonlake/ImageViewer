@@ -122,6 +122,8 @@ BOOL CImageViewerApp::InitInstance()
 	if (find.FindFile(cmdInfo.m_strFileName))
 		OpenDocumentFile(cmdInfo.m_strFileName);
 
+	m_hCursorHand = AfxGetApp()->LoadStandardCursor(IDC_HAND);
+	m_hCursorNormal = AfxGetApp()->LoadStandardCursor(IDC_ARROW);
 	// 唯一的一个窗口已初始化，因此显示它并对其进行更新
 	m_pMainWnd->ShowWindow(SW_SHOW);
 	m_pMainWnd->UpdateWindow();
@@ -159,6 +161,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 //	afx_msg void OnFileNew();
+	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 };
 
 CAboutDlg::CAboutDlg() : CDialogEx(IDD_ABOUTBOX)
@@ -172,6 +175,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
 //	ON_COMMAND(ID_FILE_NEW, &CAboutDlg::OnFileNew)
+ON_WM_SETCURSOR()
 END_MESSAGE_MAP()
 
 // 用于运行对话框的应用程序命令
@@ -182,3 +186,11 @@ void CImageViewerApp::OnAppAbout()
 }
 
 // CImageViewerApp 消息处理程序
+
+
+BOOL CAboutDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
+{
+	// TODO: Add your message handler code here and/or call default
+
+	return CDialogEx::OnSetCursor(pWnd, nHitTest, message);
+}

@@ -42,6 +42,12 @@ BEGIN_MESSAGE_MAP(CImageViewerView, CView)
 	ON_WM_DROPFILES()
 	ON_WM_ERASEBKGND()
 	ON_COMMAND(ID_FILE_NEW, &CImageViewerView::OnFileNew)
+	ON_WM_MOUSEMOVE()
+	ON_WM_LBUTTONDOWN()
+	ON_WM_LBUTTONUP()
+	ON_WM_SETCURSOR()
+	ON_WM_MOUSELEAVE()
+	ON_WM_NCMOUSELEAVE()
 END_MESSAGE_MAP()
 
 // CImageViewerView 构造/析构
@@ -69,7 +75,6 @@ CImageViewerView::CImageViewerView()
 	m_bkColor = 0xff8f8f8f;
 
 	m_BitmapInfo = { 0 };
-	m_ScrollInfo = { 0 };
 
 	FreeImage_Initialise();
 }
@@ -199,25 +204,27 @@ int CImageViewerView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	// TODO:  在此添加您专用的创建代码
 	::DragAcceptFiles(m_hWnd, TRUE);
+    
+	SCROLLINFO hScrollInfo = { 0 };
+	hScrollInfo.cbSize = sizeof(hScrollInfo);
+	hScrollInfo.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+	hScrollInfo.nMin = 0;
+	hScrollInfo.nMax = 100;
+	hScrollInfo.nPage = 100;
+	hScrollInfo.nPos = 0;
 
-	m_ScrollInfo.cbSize = sizeof(m_ScrollInfo);
-	m_ScrollInfo.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
-	m_ScrollInfo.nMin = 0;
-	m_ScrollInfo.nMax = 100;
-	m_ScrollInfo.nPage = 100;
-	m_ScrollInfo.nPos = 0;
-
-	::SetScrollInfo(m_hWnd, SB_HORZ, &m_ScrollInfo, FALSE);
+	::SetScrollInfo(m_hWnd, SB_HORZ, &hScrollInfo, FALSE);
 	::ShowScrollBar(m_hWnd, SB_HORZ, TRUE);
 
-	m_ScrollInfo.cbSize = sizeof(m_ScrollInfo);
-	m_ScrollInfo.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
-	m_ScrollInfo.nMin = 0;
-	m_ScrollInfo.nMax = 100;
-	m_ScrollInfo.nPage = 100;
-	m_ScrollInfo.nPos = 0;
+	SCROLLINFO vScrollInfo = { 0 };
+	vScrollInfo.cbSize = sizeof(vScrollInfo);
+	vScrollInfo.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+	vScrollInfo.nMin = 0;
+	vScrollInfo.nMax = 100;
+	vScrollInfo.nPage = 100;
+	vScrollInfo.nPos = 0;
 
-	::SetScrollInfo(m_hWnd, SB_VERT, &m_ScrollInfo, FALSE);
+	::SetScrollInfo(m_hWnd, SB_VERT, &vScrollInfo, FALSE);
 	::ShowScrollBar(m_hWnd, SB_VERT, TRUE);
 
 	::EnableScrollBar(m_hWnd, SB_HORZ, ESB_DISABLE_BOTH);
@@ -280,11 +287,12 @@ void CImageViewerView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar
 	iXDelta = iXNewPos - m_iXScrollPos;
 	m_iXScrollPos = iXNewPos;
 
-	m_ScrollInfo.cbSize = sizeof(m_ScrollInfo);
-	m_ScrollInfo.fMask = SIF_POS;
-	m_ScrollInfo.nPos = m_iXScrollPos;
+	SCROLLINFO scrollInfo = { 0 };
+	scrollInfo.cbSize = sizeof(scrollInfo);
+	scrollInfo.fMask = SIF_POS;
+	scrollInfo.nPos = m_iXScrollPos;
 
-	::SetScrollInfo(m_hWnd, SB_HORZ, &m_ScrollInfo, TRUE);
+	::SetScrollInfo(m_hWnd, SB_HORZ, &scrollInfo, TRUE);
 	::InvalidateRect(m_hWnd, NULL, FALSE);
 
 	CView::OnHScroll(nSBCode, nPos, pScrollBar);
@@ -319,11 +327,12 @@ BOOL CImageViewerView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	iYDelta = iYNewPos - m_iYScrollPos;
 	m_iYScrollPos = iYNewPos;
 
-	m_ScrollInfo.cbSize = sizeof(m_ScrollInfo);
-	m_ScrollInfo.fMask = SIF_POS;
-	m_ScrollInfo.nPos = m_iYScrollPos;
+	SCROLLINFO scrollInfo = { 0 };
+	scrollInfo.cbSize = sizeof(scrollInfo);
+	scrollInfo.fMask = SIF_POS;
+	scrollInfo.nPos = m_iYScrollPos;
 
-	::SetScrollInfo(m_hWnd, SB_VERT, &m_ScrollInfo, TRUE);
+	::SetScrollInfo(m_hWnd, SB_VERT, &scrollInfo, TRUE);
 	::InvalidateRect(m_hWnd, NULL, FALSE);
 
 	return CView::OnMouseWheel(nFlags, zDelta, pt);
@@ -397,11 +406,12 @@ void CImageViewerView::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar
 	iYDelta = iYNewPos - m_iYScrollPos;
 	m_iYScrollPos = iYNewPos;
 
-	m_ScrollInfo.cbSize = sizeof(m_ScrollInfo);
-	m_ScrollInfo.fMask = SIF_POS;
-	m_ScrollInfo.nPos = m_iYScrollPos;
+	SCROLLINFO scrollInfo = { 0 };
+	scrollInfo.cbSize = sizeof(scrollInfo);
+	scrollInfo.fMask = SIF_POS;
+	scrollInfo.nPos = m_iYScrollPos;
 
-	::SetScrollInfo(m_hWnd, SB_VERT, &m_ScrollInfo, TRUE);
+	::SetScrollInfo(m_hWnd, SB_VERT, &scrollInfo, TRUE);
 	::InvalidateRect(m_hWnd, NULL, FALSE);
 
 	CView::OnVScroll(nSBCode, nPos, pScrollBar);
@@ -534,6 +544,17 @@ BOOL CImageViewerView::LoadImageFromFile(const TCHAR* lpFileName)
 	bih.biPlanes = 1;
 	bih.biBitCount = bpp;
 
+	m_iXScrollMinPos = 0;
+	m_iXScrollPos = 0;
+	m_iXScrollMaxPos = 0;
+
+	m_iYScrollMinPos = 0;
+	m_iYScrollPos = 0;
+	m_iYScrollMaxPos = 0;
+
+	m_nLBlank = 0;
+	m_nTBlank = 0;
+
 	UpdateScrollBarInfo();
 
 	return TRUE;
@@ -639,6 +660,17 @@ BOOL CImageViewerView::LoadImageFromMemory(BYTE* pData, LONG iDataSize)
 	bih.biPlanes = 1;
 	bih.biBitCount = bpp;
 
+	m_iXScrollMinPos = 0;
+	m_iXScrollPos = 0;
+	m_iXScrollMaxPos = 0;
+
+	m_iYScrollMinPos = 0;
+	m_iYScrollPos = 0;
+	m_iYScrollMaxPos = 0;
+
+	m_nLBlank = 0;
+	m_nTBlank = 0;
+
 	UpdateScrollBarInfo();
 
 	return TRUE;
@@ -664,14 +696,15 @@ VOID CImageViewerView::UpdateScrollBarInfo()
 		{
 			m_iXScrollMaxPos = m_dwImageWidth > m_nWindowWidth ? m_dwImageWidth : 0;
 			m_iXScrollPos = m_iXScrollPos < m_iXScrollMaxPos - (int)m_nWindowWidth ? m_iXScrollPos : m_iXScrollMaxPos - (int)m_nWindowWidth;
-			m_ScrollInfo.cbSize = sizeof(m_ScrollInfo);
-			m_ScrollInfo.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
-			m_ScrollInfo.nMin = m_iXScrollMinPos;
-			m_ScrollInfo.nMax = m_iXScrollMaxPos;
-			m_ScrollInfo.nPage = m_nWindowWidth;
-			m_ScrollInfo.nPos = m_iXScrollPos;
+			SCROLLINFO hScrollInfo = { 0 };
+			hScrollInfo.cbSize = sizeof(hScrollInfo);
+			hScrollInfo.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+			hScrollInfo.nMin = m_iXScrollMinPos;
+			hScrollInfo.nMax = m_iXScrollMaxPos;
+			hScrollInfo.nPage = m_nWindowWidth;
+			hScrollInfo.nPos = m_iXScrollPos;
 
-			::SetScrollInfo(m_hWnd, SB_HORZ, &m_ScrollInfo, TRUE);
+			::SetScrollInfo(m_hWnd, SB_HORZ, &hScrollInfo, TRUE);
 			::ShowScrollBar(m_hWnd, SB_HORZ, TRUE);
 
 			::EnableScrollBar(m_hWnd, SB_HORZ, ESB_ENABLE_BOTH);
@@ -688,14 +721,15 @@ VOID CImageViewerView::UpdateScrollBarInfo()
 		{
 			m_iYScrollMaxPos = m_dwImageHeight > m_nWindowHeight ? m_dwImageHeight : 0;
 			m_iYScrollPos = m_iYScrollPos < m_iYScrollMaxPos - (int)m_nWindowHeight ? m_iYScrollPos : m_iYScrollMaxPos - (int)m_nWindowHeight;
-			m_ScrollInfo.cbSize = sizeof(m_ScrollInfo);
-			m_ScrollInfo.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
-			m_ScrollInfo.nMin = m_iYScrollMinPos;
-			m_ScrollInfo.nMax = m_iYScrollMaxPos;
-			m_ScrollInfo.nPage = m_nWindowHeight;
-			m_ScrollInfo.nPos = m_iYScrollPos;
+			SCROLLINFO vScrollInfo = { 0 };
+			vScrollInfo.cbSize = sizeof(vScrollInfo);
+			vScrollInfo.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+			vScrollInfo.nMin = m_iYScrollMinPos;
+			vScrollInfo.nMax = m_iYScrollMaxPos;
+			vScrollInfo.nPage = m_nWindowHeight;
+			vScrollInfo.nPos = m_iYScrollPos;
 
-			::SetScrollInfo(m_hWnd, SB_VERT, &m_ScrollInfo, TRUE);
+			::SetScrollInfo(m_hWnd, SB_VERT, &vScrollInfo, TRUE);
 			::ShowScrollBar(m_hWnd, SB_VERT, TRUE);
 
 			::EnableScrollBar(m_hWnd, SB_VERT, ESB_ENABLE_BOTH);
@@ -720,24 +754,6 @@ void CImageViewerView::OnFileNew()
 	// TODO: Add your command handler code here
 }
 
-
-//void CImageViewerView::OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView)
-//{
-//	CView::OnActivateView(bActivate, pActivateView, pDeactiveView);
-//	// TODO: Add your specialized code here and/or call the base class
-//
-//
-//}
-
-
-//void CImageViewerView::OnActivateFrame(UINT nState, CFrameWnd* pDeactivateFrame)
-//{
-//	// TODO: Add your specialized code here and/or call the base class
-//
-//	CView::OnActivateFrame(nState, pDeactivateFrame);
-//}
-
-
 void CImageViewerView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHint*/)
 {
 	// TODO: Add your specialized code here and/or call the base class
@@ -748,4 +764,151 @@ void CImageViewerView::OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /
 		m_FileName = pDoc->m_strFileName;
 		LoadImageFromFile(m_FileName);
 	}
+}
+
+
+void CImageViewerView::OnMouseMove(UINT nFlags, CPoint point)
+{
+	// TODO: Add your message handler code here and/or call default
+
+	if (nFlags != MK_LBUTTON)
+		return;
+
+	if (!m_UseHand)
+	{
+		auto pApp = (CImageViewerApp*)AfxGetApp();
+		m_UseHand = true;
+		SetCursor(pApp->m_hCursorHand);
+	}
+
+	int   iXDelta = 0;
+	int   iYDelta = 0;
+	int   iYNewPos = 0;
+	int   iXNewPos = 0;
+	DWORD iWidth = 0;
+	DWORD iHeight = 0;
+
+	RECT  rtClient;
+	::GetClientRect(m_hWnd, &rtClient);
+
+	iWidth = rtClient.right - rtClient.left;
+	iHeight = rtClient.bottom - rtClient.top;
+
+	iYNewPos = m_iYScrollPos - (point.y - m_lastMousePos.y);
+	iXNewPos = m_iXScrollPos - (point.x - m_lastMousePos.x);
+
+	m_lastMousePos = point;
+
+	if (m_iYScrollMaxPos - (int)iHeight < iYNewPos)
+		iYNewPos = m_iYScrollMaxPos - (int)iHeight;
+
+	if (m_iXScrollMaxPos - (int)iWidth < iXNewPos)
+		iXNewPos = m_iXScrollMaxPos - (int)iWidth;
+
+	if (0 > iYNewPos)
+		iYNewPos = 0;
+
+	if (0 > iXNewPos)
+		iXNewPos = 0;
+
+	bool xMove = true;
+	bool yMove = true;
+
+	if (iYNewPos == m_iYScrollPos || iHeight >= m_dwImageHeight)
+	{
+		yMove = false;
+	}
+	if (iXNewPos == m_iXScrollPos || iWidth >= m_dwImageWidth)
+		xMove = false;
+
+	if (!xMove && !yMove)
+		return;
+
+	iYDelta = iYNewPos - m_iYScrollPos;
+	iXDelta = iXNewPos - m_iXScrollPos;
+	m_iYScrollPos = iYNewPos;
+	m_iXScrollPos = iXNewPos;
+
+	if (yMove)
+	{
+		SCROLLINFO vScrollInfo = { 0 };
+		vScrollInfo.cbSize = sizeof(vScrollInfo);
+		vScrollInfo.fMask = SIF_POS;
+		vScrollInfo.nPos = m_iYScrollPos;
+		::SetScrollInfo(m_hWnd, SB_VERT, &vScrollInfo, TRUE);
+	}
+
+	if (xMove)
+	{
+		SCROLLINFO hScrollInfo = { 0 };
+		hScrollInfo.cbSize = sizeof(hScrollInfo);
+		hScrollInfo.fMask = SIF_POS;
+		hScrollInfo.nPos = m_iXScrollPos;
+		::SetScrollInfo(m_hWnd, SB_HORZ, &hScrollInfo, TRUE);
+	}
+	::InvalidateRect(m_hWnd, NULL, FALSE);
+
+	CView::OnMouseMove(nFlags, point);
+}
+
+
+void CImageViewerView::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	// TODO: Add your message handler code here and/or call default
+	m_lastMousePos = point;
+	CView::OnLButtonDown(nFlags, point);
+	auto pApp = (CImageViewerApp*)AfxGetApp();
+	SetCursor(pApp->m_hCursorHand); 
+	m_UseHand = true;
+}
+
+
+void CImageViewerView::OnLButtonUp(UINT nFlags, CPoint point)
+{
+	// TODO: Add your message handler code here and/or call default
+
+	CView::OnLButtonUp(nFlags, point);
+	auto pApp = (CImageViewerApp*)AfxGetApp();
+	m_UseHand = false;
+	SetCursor(pApp->m_hCursorNormal);
+}
+
+
+BOOL CImageViewerView::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
+{
+	// TODO: Add your message handler code here and/or call default
+
+	if (m_UseHand)
+	{
+		auto pApp = (CImageViewerApp*)AfxGetApp();
+		SetCursor(pApp->m_hCursorHand);
+		return TRUE;
+	}
+	return CView::OnSetCursor(pWnd, nHitTest, message);
+}
+
+
+void CImageViewerView::OnMouseLeave()
+{
+	// TODO: Add your message handler code here and/or call default
+
+	auto pApp = (CImageViewerApp*)AfxGetApp();
+	m_UseHand = false;
+	SetCursor(pApp->m_hCursorNormal);
+
+	CView::OnMouseLeave();
+}
+
+
+void CImageViewerView::OnNcMouseLeave()
+{
+	// This feature requires Windows 2000 or greater.
+	// The symbols _WIN32_WINNT and WINVER must be >= 0x0500.
+	// TODO: Add your message handler code here and/or call default
+
+	auto pApp = (CImageViewerApp*)AfxGetApp();
+	m_UseHand = false;
+	SetCursor(pApp->m_hCursorNormal);
+
+	CView::OnNcMouseLeave();
 }

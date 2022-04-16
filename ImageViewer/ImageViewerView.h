@@ -30,9 +30,11 @@ private:
 	DWORD		m_nTBlank;
 
 	BITMAPINFO	m_BitmapInfo;
-	SCROLLINFO	m_ScrollInfo;
 
 	COLORREF	m_bkColor;
+
+	CPoint      m_lastMousePos;
+	bool		m_UseHand = false;
 
 protected: // 仅从序列化创建
 	CImageViewerView();
@@ -83,6 +85,12 @@ public:
 //	virtual void OnActivateView(BOOL bActivate, CView* pActivateView, CView* pDeactiveView);
 //	virtual void OnActivateFrame(UINT nState, CFrameWnd* pDeactivateFrame);
 	virtual void OnUpdate(CView* /*pSender*/, LPARAM /*lHint*/, CObject* /*pHint*/);
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
+	afx_msg void OnMouseLeave();
+	afx_msg void OnNcMouseLeave();
 };
 
 #ifndef _DEBUG  // ImageViewerView.cpp 中的调试版本
