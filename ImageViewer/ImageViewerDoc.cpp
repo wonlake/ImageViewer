@@ -414,13 +414,12 @@ std::shared_ptr<BYTE[]> CImageViewerDoc::SaveImageToFile(const wchar_t* lpFileNa
 	{ 
 		auto dst = FreeImage_OpenMemory();
 		auto ok = FreeImage_SaveToMemory(fifDst, pFiBitmap, dst);
-		len = FreeImage_TellMemory(dst);
-		auto buffer = new BYTE[len];
-		ZeroMemory(buffer, len);
-		FreeImage_SeekMemory(dst, 0, SEEK_SET);
-		int ret = FreeImage_ReadMemory(buffer, 1, len, dst);
+		BYTE* pData = NULL; 
+		FreeImage_AcquireMemory(dst, &pData, (DWORD*)&len);
+		auto pBuffer = new BYTE[len];
+		memcpy(pBuffer, pData, len);
 		FreeImage_CloseMemory(dst); 
-		data.reset(buffer);
+		data.reset(pBuffer);
 	}
 
 	if (bMultiBitmap)
@@ -443,6 +442,13 @@ BOOL CImageViewerDoc::OnSaveDocument(LPCTSTR lpszPathName)
 
 	if (lpszPathName == m_strPathName)
 		return FALSE;
+
+	auto fifDst = FreeImage_GetFIFFromFilenameU(lpszPathName);
+	if (!FreeImage_FIFSupportsWriting(fifDst))
+	{
+		AfxGetMainWnd()->MessageBox(TEXT("格式不支持"));
+		return FALSE;
+	}
 
 	return CDocument::OnSaveDocument(lpszPathName);
 }
