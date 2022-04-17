@@ -10,10 +10,8 @@ class CImageViewerView : public CView
 {
 private:
 	CString m_FileName = TEXT("");
-	std::shared_ptr<BYTE[]> m_pImageData;
 	
-	DWORD		m_dwImageWidth;
-	DWORD		m_dwImageHeight;
+	BYTE*		m_pImageData = NULL;
 
 	DWORD		m_nWindowWidth;
 	DWORD		m_nWindowHeight;
@@ -31,8 +29,6 @@ private:
 
 	BITMAPINFO	m_BitmapInfo;
 
-	COLORREF	m_bkColor;
-
 	CPoint      m_lastMousePos;
 	bool		m_UseHand = false;
 
@@ -46,8 +42,6 @@ public:
 
 // ²Ù×÷
 public:
-	BOOL LoadImageFromMemory(BYTE* pData, LONG iDataSize);
-	BOOL LoadImageFromFile(const TCHAR* pszFileName);
 	VOID UpdateScrollBarInfo();
 
 // ÖØÐ´

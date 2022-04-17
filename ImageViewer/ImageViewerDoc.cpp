@@ -58,10 +58,15 @@ void CImageViewerDoc::Serialize(CArchive& ar)
 	if (ar.IsStoring())
 	{
 		// TODO: 在此添加存储代码
+		int len = 0;
+		auto data = SaveImageToFile(m_strPathName, ar.m_strFileName, len);
+		if (data != nullptr)
+			ar.Write(data.get(), len); 
 	}
 	else
 	{
 		// TODO: 在此添加加载代码
+		LoadImageFromFile(ar.m_strFileName);
 	}
 }
 
@@ -137,14 +142,307 @@ void CImageViewerDoc::Dump(CDumpContext& dc) const
 // CImageViewerDoc 命令
 
 
-BOOL CImageViewerDoc::OnOpenDocument(LPCTSTR lpszPathName)
+//BOOL CImageViewerDoc::OnOpenDocument(LPCTSTR lpszPathName)
+//{
+//	if (!CDocument::OnOpenDocument(lpszPathName))
+//		return FALSE;
+//
+//	// TODO:  Add your specialized creation code here
+//
+//	//UpdateAllViews(NULL);
+//	return TRUE;
+//}
+
+BOOL CImageViewerDoc::LoadImageFromMemory(BYTE* pData, LONG iDataSize)
 {
-	if (!CDocument::OnOpenDocument(lpszPathName))
+	// TODO: 在此添加实现代码
+	FIBITMAP* pFiBitmap = NULL;
+	FIMULTIBITMAP* pFiMultiBitmap = NULL;
+	DWORD             dwIndex = 0;
+	BOOL              bMultiBitmap = FALSE;
+
+	FIMEMORY* fi_mem = FreeImage_OpenMemory(pData, iDataSize);
+	FREE_IMAGE_FORMAT FiFormat = FreeImage_GetFileTypeFromMemory(fi_mem, iDataSize);
+
+	if (FiFormat == FIF_UNKNOWN)
+	{
+		FreeImage_CloseMemory(fi_mem);
+		return FALSE;
+	}
+
+	if (FiFormat == FIF_JPEG)
+		pFiBitmap = FreeImage_LoadFromMemory(FiFormat, fi_mem, JPEG_CMYK);
+	else if (FiFormat == FIF_GIF)
+		pFiBitmap = FreeImage_LoadFromMemory(FiFormat, fi_mem, GIF_PLAYBACK);
+	else if (FiFormat == FIF_ICO)
+		pFiBitmap = FreeImage_LoadFromMemory(FiFormat, fi_mem, ICO_MAKEALPHA);
+	else
+		pFiBitmap = FreeImage_LoadFromMemory(FiFormat, fi_mem, 0);
+
+	int bpp = FreeImage_GetBPP(pFiBitmap);
+	int iWidth = FreeImage_GetWidth(pFiBitmap);
+	int iHeight = FreeImage_GetHeight(pFiBitmap);
+
+	int iRowPitch = iWidth * bpp / 8;
+	while (iRowPitch % 4)
+		++iRowPitch;
+	int imageSize = iRowPitch * iHeight;
+
+	m_dwImageWidth = iWidth;
+	m_dwImageHeight = iHeight;
+	m_dwImageBpp = bpp;
+
+	m_pImageData.reset(new BYTE[imageSize]);
+
+	BYTE* pImageData = FreeImage_GetBits(pFiBitmap);
+	memcpy(m_pImageData.get(), pImageData, imageSize);
+
+	if (bMultiBitmap)
+	{
+		FreeImage_UnlockPage(pFiMultiBitmap, pFiBitmap, FALSE);
+		FreeImage_CloseMultiBitmap(pFiMultiBitmap, 0);
+	}
+	else
+	{
+		FreeImage_Unload(pFiBitmap);
+	}
+	FreeImage_CloseMemory(fi_mem);
+
+	if (bpp == 32)
+	{
+		auto pBuffer = m_pImageData.get();
+		for (auto m = 0; m < m_dwImageHeight; m++)
+		{
+			for (auto n = 0; n < m_dwImageWidth; n++)
+			{
+				auto dwDataIndex = iRowPitch * m + n * 4;
+
+				pBuffer[dwDataIndex] = pBuffer[dwDataIndex] * pBuffer[dwDataIndex + 3] / 255 +
+					(255 - pBuffer[dwDataIndex + 3]) * GetBValue(m_bkColor) / 255;
+				pBuffer[dwDataIndex + 1] = pBuffer[dwDataIndex + 1] * pBuffer[dwDataIndex + 3] / 255 +
+					(255 - pBuffer[dwDataIndex + 3]) * GetGValue(m_bkColor) / 255;
+				pBuffer[dwDataIndex + 2] = pBuffer[dwDataIndex + 2] * pBuffer[dwDataIndex + 3] / 255 +
+					(255 - pBuffer[dwDataIndex + 3]) * GetRValue(m_bkColor) / 255;
+			}
+		}
+	}
+
+	return TRUE;
+}
+
+BOOL CImageViewerDoc::LoadImageFromFile(const wchar_t* lpFileName)
+{
+	FIBITMAP* pFiBitmap = NULL;
+	FIMULTIBITMAP* pFiMultiBitmap = NULL;
+	DWORD             dwIndex = 0;
+	BOOL              bMultiBitmap = FALSE;
+
+	FREE_IMAGE_FORMAT FiFormat = FreeImage_GetFileTypeU(lpFileName, 0);
+
+	if (FiFormat == FIF_UNKNOWN)
 		return FALSE;
 
-	// TODO:  Add your specialized creation code here
-	m_strFileName = lpszPathName;
+	if (FiFormat == FIF_JPEG)
+		pFiBitmap = FreeImage_LoadU(FiFormat, lpFileName, JPEG_CMYK);
+	else if (FiFormat == FIF_ICO)
+	{
+		bMultiBitmap = TRUE;
 
-	UpdateAllViews(NULL);
+		int len = WideCharToMultiByte(CP_ACP, 0, lpFileName, -1, NULL, 0, NULL, NULL);
+		char* pFileName = new char[len];
+		WideCharToMultiByte(CP_ACP, 0, lpFileName, -1, pFileName, len, NULL, NULL);
+
+		pFiMultiBitmap = FreeImage_OpenMultiBitmap(FiFormat,
+			pFileName, FALSE, TRUE, TRUE, ICO_DEFAULT);
+
+		pFiBitmap = FreeImage_LockPage(pFiMultiBitmap, dwIndex);
+		for (int i = 0; i < FreeImage_GetPageCount(pFiMultiBitmap); ++i)
+		{
+			FIBITMAP* pTempBitamp = FreeImage_LockPage(pFiMultiBitmap, i);
+			if ((FreeImage_GetWidth(pTempBitamp) > FreeImage_GetWidth(pFiBitmap)) ||
+				(FreeImage_GetBPP(pTempBitamp) > FreeImage_GetBPP(pFiBitmap)))
+			{
+				FreeImage_UnlockPage(pFiMultiBitmap, pFiBitmap, FALSE);
+				pFiBitmap = pTempBitamp;
+				dwIndex = i;
+				continue;
+			}
+			FreeImage_UnlockPage(pFiMultiBitmap, pTempBitamp, FALSE);
+		}
+		FreeImage_CloseMultiBitmap(pFiMultiBitmap, 0);
+
+		pFiMultiBitmap = FreeImage_OpenMultiBitmap(FiFormat,
+			pFileName, FALSE, TRUE, TRUE, ICO_MAKEALPHA);
+		pFiBitmap = FreeImage_LockPage(pFiMultiBitmap, dwIndex);
+		delete[] pFileName;
+	}
+	else if (FiFormat == FIF_GIF)
+	{
+		bMultiBitmap = TRUE;
+
+		int len = WideCharToMultiByte(CP_ACP, 0, lpFileName, -1, NULL, 0, NULL, NULL);
+		char* pFileName = new char[len];
+		WideCharToMultiByte(CP_ACP, 0, lpFileName, -1, pFileName, len, NULL, NULL);
+
+		pFiMultiBitmap = FreeImage_OpenMultiBitmap(FiFormat,
+			pFileName, FALSE, TRUE, TRUE, GIF_PLAYBACK);
+		pFiBitmap = FreeImage_LockPage(pFiMultiBitmap, 0);
+		delete[] pFileName;
+	}
+	else
+		pFiBitmap = FreeImage_LoadU(FiFormat, (LPCTSTR)lpFileName, 0);
+
+	int bpp = FreeImage_GetBPP(pFiBitmap);
+	int iWidth = FreeImage_GetWidth(pFiBitmap);
+	int iHeight = FreeImage_GetHeight(pFiBitmap);
+
+	int iRowPitch = iWidth * bpp / 8;
+	while (iRowPitch % 4)
+		++iRowPitch;
+	int imageSize = iRowPitch * iHeight;
+
+	m_dwImageWidth = iWidth;
+	m_dwImageHeight = iHeight;
+	m_dwImageBpp = bpp;
+
+	m_pImageData.reset(new BYTE[imageSize]);
+
+	BYTE* pImageData = FreeImage_GetBits(pFiBitmap);
+	memcpy(m_pImageData.get(), pImageData, imageSize);
+
+	if (bMultiBitmap)
+	{
+		FreeImage_UnlockPage(pFiMultiBitmap, pFiBitmap, FALSE);
+		FreeImage_CloseMultiBitmap(pFiMultiBitmap, 0);
+	}
+	else
+	{
+		FreeImage_Unload(pFiBitmap);
+	}
+
+	if (bpp == 32)
+	{
+		COLORREF BgColor = m_bkColor;
+
+		auto pBuffer = m_pImageData.get();
+		for (auto m = 0; m < m_dwImageHeight; m++)
+		{
+			for (auto n = 0; n < m_dwImageWidth; n++)
+			{
+				auto dwDataIndex = iRowPitch * m + n * 4;
+
+				pBuffer[dwDataIndex] = pBuffer[dwDataIndex] * pBuffer[dwDataIndex + 3] / 255 +
+					(255 - pBuffer[dwDataIndex + 3]) * GetBValue(BgColor) / 255;
+				pBuffer[dwDataIndex + 1] = pBuffer[dwDataIndex + 1] * pBuffer[dwDataIndex + 3] / 255 +
+					(255 - pBuffer[dwDataIndex + 3]) * GetGValue(BgColor) / 255;
+				pBuffer[dwDataIndex + 2] = pBuffer[dwDataIndex + 2] * pBuffer[dwDataIndex + 3] / 255 +
+					(255 - pBuffer[dwDataIndex + 3]) * GetRValue(BgColor) / 255;
+			}
+		}
+	} 
+
 	return TRUE;
+}
+
+std::shared_ptr<BYTE[]> CImageViewerDoc::SaveImageToFile(const wchar_t* lpFileName, const wchar_t* lpDstFileName, int &len)
+{
+	FIBITMAP* pFiBitmap = NULL;
+	FIMULTIBITMAP* pFiMultiBitmap = NULL;
+	DWORD             dwIndex = 0;
+	BOOL              bMultiBitmap = FALSE;
+
+	FREE_IMAGE_FORMAT FiFormat = FreeImage_GetFileTypeU(lpFileName, 0);
+
+	if (FiFormat == FIF_UNKNOWN)
+		return NULL;
+
+	if (FiFormat == FIF_JPEG)
+		pFiBitmap = FreeImage_LoadU(FiFormat, lpFileName, JPEG_CMYK);
+	else if (FiFormat == FIF_ICO)
+	{
+		bMultiBitmap = TRUE;
+
+		int len = WideCharToMultiByte(CP_ACP, 0, lpFileName, -1, NULL, 0, NULL, NULL);
+		char* pFileName = new char[len];
+		WideCharToMultiByte(CP_ACP, 0, lpFileName, -1, pFileName, len, NULL, NULL);
+
+		pFiMultiBitmap = FreeImage_OpenMultiBitmap(FiFormat,
+			pFileName, FALSE, TRUE, TRUE, ICO_DEFAULT);
+
+		pFiBitmap = FreeImage_LockPage(pFiMultiBitmap, dwIndex);
+		for (int i = 0; i < FreeImage_GetPageCount(pFiMultiBitmap); ++i)
+		{
+			FIBITMAP* pTempBitamp = FreeImage_LockPage(pFiMultiBitmap, i);
+			if ((FreeImage_GetWidth(pTempBitamp) > FreeImage_GetWidth(pFiBitmap)) ||
+				(FreeImage_GetBPP(pTempBitamp) > FreeImage_GetBPP(pFiBitmap)))
+			{
+				FreeImage_UnlockPage(pFiMultiBitmap, pFiBitmap, FALSE);
+				pFiBitmap = pTempBitamp;
+				dwIndex = i;
+				continue;
+			}
+			FreeImage_UnlockPage(pFiMultiBitmap, pTempBitamp, FALSE);
+		}
+		FreeImage_CloseMultiBitmap(pFiMultiBitmap, 0);
+
+		pFiMultiBitmap = FreeImage_OpenMultiBitmap(FiFormat,
+			pFileName, FALSE, TRUE, TRUE, ICO_MAKEALPHA);
+		pFiBitmap = FreeImage_LockPage(pFiMultiBitmap, dwIndex);
+		delete[] pFileName;
+	}
+	else if (FiFormat == FIF_GIF)
+	{
+		bMultiBitmap = TRUE;
+
+		int len = WideCharToMultiByte(CP_ACP, 0, lpFileName, -1, NULL, 0, NULL, NULL);
+		char* pFileName = new char[len];
+		WideCharToMultiByte(CP_ACP, 0, lpFileName, -1, pFileName, len, NULL, NULL);
+
+		pFiMultiBitmap = FreeImage_OpenMultiBitmap(FiFormat,
+			pFileName, FALSE, TRUE, TRUE, GIF_PLAYBACK);
+		pFiBitmap = FreeImage_LockPage(pFiMultiBitmap, 0);
+		delete[] pFileName;
+	}
+	else
+		pFiBitmap = FreeImage_LoadU(FiFormat, (LPCTSTR)lpFileName, 0);
+
+	auto fifDst = FreeImage_GetFIFFromFilenameU(lpDstFileName);
+
+	std::shared_ptr<BYTE[]> data = NULL;
+
+	if (fifDst != FIF_UNKNOWN)
+	{ 
+		auto dst = FreeImage_OpenMemory();
+		auto ok = FreeImage_SaveToMemory(fifDst, pFiBitmap, dst);
+		len = FreeImage_TellMemory(dst);
+		auto buffer = new BYTE[len];
+		ZeroMemory(buffer, len);
+		FreeImage_SeekMemory(dst, 0, SEEK_SET);
+		int ret = FreeImage_ReadMemory(buffer, 1, len, dst);
+		FreeImage_CloseMemory(dst); 
+		data.reset(buffer);
+	}
+
+	if (bMultiBitmap)
+	{
+		FreeImage_UnlockPage(pFiMultiBitmap, pFiBitmap, FALSE);
+		FreeImage_CloseMultiBitmap(pFiMultiBitmap, 0);
+	}
+	else
+	{
+		FreeImage_Unload(pFiBitmap);
+	}
+
+	return data;
+}
+
+
+BOOL CImageViewerDoc::OnSaveDocument(LPCTSTR lpszPathName)
+{
+	// TODO: Add your specialized code here and/or call the base class
+
+	if (lpszPathName == m_strPathName)
+		return FALSE;
+
+	return CDocument::OnSaveDocument(lpszPathName);
 }

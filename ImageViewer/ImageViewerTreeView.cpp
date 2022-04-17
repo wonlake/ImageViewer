@@ -183,7 +183,6 @@ void CImageViewerTreeView::OnDropFiles(HDROP hDropInfo)
 			iter = m_mapFiles.begin();
 			if (iter != m_mapFiles.end())
 			{
-				pView->LoadImageFromMemory(iter->second.pData, iter->second.iDataSize);
 			}
 
 			HTREEITEM pRoot = fileListTree.InsertItem(pTitle, NULL);
@@ -225,7 +224,6 @@ void CImageViewerTreeView::OnDropFiles(HDROP hDropInfo)
 			File.Close();
 			static TCHAR szFileName[1024] = { 0 };
 			::DragQueryFile(hDropInfo, 0, szFileName, sizeof(szFileName));
-			pView->LoadImageFromFile(szFileName);
 		}
 	}
 
@@ -272,8 +270,6 @@ void CImageViewerTreeView::OnNMDblclk(NMHDR *pNMHDR, LRESULT *pResult)
 				m_mapFiles.find((LPCTSTR)strItemText);
 			if (iter != m_mapFiles.end())
 			{
-				pView->LoadImageFromMemory(iter->second.pData,
-					iter->second.iDataSize);
 			}
 		}
 	}

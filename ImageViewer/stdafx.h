@@ -34,6 +34,13 @@
 #include <afxcontrolbars.h>     // 功能区和控件条的 MFC 支持
 #include <afxcview.h>
 
+#include <freeimage.h>
+
+#ifdef _DEBUG
+#pragma comment( lib, "libfreeimage_d.lib" )
+#else
+#pragma comment( lib, "libfreeimage.lib" )
+#endif
 
 
 

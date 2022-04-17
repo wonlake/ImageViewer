@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <memory>
 
 class CImageViewerDoc : public CDocument
 {
@@ -13,7 +14,14 @@ protected: // 仅从序列化创建
 	DECLARE_DYNCREATE(CImageViewerDoc)
 
 // 特性
-public:
+public: 
+	std::shared_ptr<BYTE[]> m_pImageData;
+
+	int m_dwImageWidth = 0;
+	int m_dwImageHeight = 0;
+	int m_dwImageBpp = 24;
+
+	COLORREF m_bkColor = 0x8F8F8F; 
 
 // 操作
 public:
@@ -35,8 +43,9 @@ public:
 	virtual void Dump(CDumpContext& dc) const;
 #endif
 
-	CString m_strFileName;
-
+	BOOL LoadImageFromMemory(BYTE* pData, LONG iDataSize);
+	BOOL LoadImageFromFile(const wchar_t* pszFileName);
+	std::shared_ptr<BYTE[]> CImageViewerDoc::SaveImageToFile(const wchar_t* lpFileName, const wchar_t* lpDstFileName, int& len);
 protected:
 // 生成的消息映射函数
 protected:
@@ -47,5 +56,6 @@ protected:
 	void SetSearchContent(const CString& value);
 #endif // SHARED_HANDLERS
 public:
-	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
+//	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
+	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
 };

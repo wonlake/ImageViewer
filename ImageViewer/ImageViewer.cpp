@@ -108,6 +108,7 @@ BOOL CImageViewerApp::InitInstance()
 		return FALSE;
 	AddDocTemplate(pDocTemplate);
 
+	FreeImage_Initialise();
 
 	// 分析标准 shell 命令、DDE、打开文件操作的命令行
 	CCommandLineInfo cmdInfo;
@@ -134,6 +135,8 @@ int CImageViewerApp::ExitInstance()
 {
 	//TODO: 处理可能已添加的附加资源
 	AfxOleTerm(FALSE);
+
+	FreeImage_DeInitialise();
 
 	return CWinAppEx::ExitInstance();
 }
