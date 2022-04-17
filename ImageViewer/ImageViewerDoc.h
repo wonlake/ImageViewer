@@ -56,6 +56,6 @@ protected:
 	void SetSearchContent(const CString& value);
 #endif // SHARED_HANDLERS
 public:
-//	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
+	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
 	virtual BOOL OnSaveDocument(LPCTSTR lpszPathName);
 };

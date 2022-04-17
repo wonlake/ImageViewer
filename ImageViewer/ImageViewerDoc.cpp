@@ -141,18 +141,6 @@ void CImageViewerDoc::Dump(CDumpContext& dc) const
 
 // CImageViewerDoc 命令
 
-
-//BOOL CImageViewerDoc::OnOpenDocument(LPCTSTR lpszPathName)
-//{
-//	if (!CDocument::OnOpenDocument(lpszPathName))
-//		return FALSE;
-//
-//	// TODO:  Add your specialized creation code here
-//
-//	//UpdateAllViews(NULL);
-//	return TRUE;
-//}
-
 BOOL CImageViewerDoc::LoadImageFromMemory(BYTE* pData, LONG iDataSize)
 {
 	// TODO: 在此添加实现代码
@@ -451,4 +439,15 @@ BOOL CImageViewerDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	}
 
 	return CDocument::OnSaveDocument(lpszPathName);
+}
+
+
+BOOL CImageViewerDoc::OnOpenDocument(LPCTSTR lpszPathName)
+{
+	if (!CDocument::OnOpenDocument(lpszPathName))
+		return FALSE;
+
+	// TODO:  Add your specialized creation code here
+	auto fif = FreeImage_GetFIFFromFilenameU(lpszPathName);
+	return FreeImage_FIFSupportsReading(fif); 
 }
