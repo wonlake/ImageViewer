@@ -60,7 +60,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_wndToolBar.GetToolBarCtrl().DeleteButton(5); 
 	m_wndToolBar.GetToolBarCtrl().DeleteButton(4);
 	m_wndToolBar.GetToolBarCtrl().DeleteButton(3);
-	//m_wndToolBar.GetToolBarCtrl().DeleteButton(2);
+	m_wndToolBar.GetToolBarCtrl().DeleteButton(2);
 	m_wndToolBar.GetToolBarCtrl().DeleteButton(0);
 
 	if (!m_wndStatusBar.Create(this))

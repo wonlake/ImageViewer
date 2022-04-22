@@ -171,6 +171,13 @@ BOOL CImageViewerDoc::LoadImageFromMemory(BYTE* pData, LONG iDataSize)
 	int iWidth = FreeImage_GetWidth(pFiBitmap);
 	int iHeight = FreeImage_GetHeight(pFiBitmap);
 
+	auto srcBitmap = pFiBitmap;
+	if(bpp != 32)
+	{
+		srcBitmap = FreeImage_ConvertTo32Bits(pFiBitmap);
+		bpp = 32;
+	}
+
 	int iRowPitch = iWidth * bpp / 8;
 	while (iRowPitch % 4)
 		++iRowPitch;
@@ -182,8 +189,11 @@ BOOL CImageViewerDoc::LoadImageFromMemory(BYTE* pData, LONG iDataSize)
 
 	m_pImageData.reset(new BYTE[imageSize]);
 
-	BYTE* pImageData = FreeImage_GetBits(pFiBitmap);
+	BYTE* pImageData = FreeImage_GetBits(srcBitmap);
 	memcpy(m_pImageData.get(), pImageData, imageSize);
+
+	if (srcBitmap != pFiBitmap)
+		FreeImage_Unload(srcBitmap);
 
 	if (bMultiBitmap)
 	{
@@ -283,6 +293,13 @@ BOOL CImageViewerDoc::LoadImageFromFile(const wchar_t* lpFileName)
 	int bpp = FreeImage_GetBPP(pFiBitmap);
 	int iWidth = FreeImage_GetWidth(pFiBitmap);
 	int iHeight = FreeImage_GetHeight(pFiBitmap);
+ 
+	auto srcBitmap = pFiBitmap;
+	if(bpp != 32)
+	{
+		srcBitmap = FreeImage_ConvertTo32Bits(pFiBitmap);
+		bpp = 32;
+	}
 
 	int iRowPitch = iWidth * bpp / 8;
 	while (iRowPitch % 4)
@@ -295,8 +312,11 @@ BOOL CImageViewerDoc::LoadImageFromFile(const wchar_t* lpFileName)
 
 	m_pImageData.reset(new BYTE[imageSize]);
 
-	BYTE* pImageData = FreeImage_GetBits(pFiBitmap);
+	BYTE* pImageData = FreeImage_GetBits(srcBitmap);
 	memcpy(m_pImageData.get(), pImageData, imageSize);
+
+	if(srcBitmap != pFiBitmap)
+		FreeImage_Unload(srcBitmap);
 
 	if (bMultiBitmap)
 	{
@@ -429,7 +449,7 @@ BOOL CImageViewerDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	// TODO: Add your specialized code here and/or call the base class
 
 	if (lpszPathName == m_strPathName)
-		return FALSE;
+		return TRUE;
 
 	auto fifDst = FreeImage_GetFIFFromFilenameU(lpszPathName);
 	if (!FreeImage_FIFSupportsWriting(fifDst))
