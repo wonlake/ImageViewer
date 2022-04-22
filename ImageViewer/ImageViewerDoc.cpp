@@ -22,6 +22,7 @@
 IMPLEMENT_DYNCREATE(CImageViewerDoc, CDocument)
 
 BEGIN_MESSAGE_MAP(CImageViewerDoc, CDocument)
+	ON_COMMAND(ID_FILE_SAVE_AS, &CImageViewerDoc::OnFileSaveAs)
 END_MESSAGE_MAP()
 
 
@@ -460,6 +461,9 @@ BOOL CImageViewerDoc::OnSaveDocument(LPCTSTR lpszPathName)
 	if (lpszPathName == m_strPathName)
 		return TRUE;
 
+	if (m_strPathName.IsEmpty())
+		return FALSE;
+
 	auto fifDst = FreeImage_GetFIFFromFilenameU(lpszPathName);
 	if (!FreeImage_FIFSupportsWriting(fifDst))
 	{
@@ -479,4 +483,13 @@ BOOL CImageViewerDoc::OnOpenDocument(LPCTSTR lpszPathName)
 	// TODO:  Add your specialized creation code here
 	auto fif = FreeImage_GetFIFFromFilenameU(lpszPathName);
 	return FreeImage_FIFSupportsReading(fif); 
+}
+
+
+void CImageViewerDoc::OnFileSaveAs()
+{
+	// TODO: Add your command handler code here
+	if (m_strPathName.IsEmpty())
+		return;
+	CDocument::DoSave(NULL);
 }
