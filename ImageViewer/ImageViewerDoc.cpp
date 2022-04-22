@@ -418,10 +418,16 @@ std::shared_ptr<BYTE[]> CImageViewerDoc::SaveImageToFile(const wchar_t* lpFileNa
 
 	std::shared_ptr<BYTE[]> data = NULL;
 
+	auto srcBitmap = pFiBitmap;
+	if(FreeImage_GetBPP(srcBitmap) != 32 && FreeImage_GetBPP(srcBitmap) != 24)
+	{
+		srcBitmap = FreeImage_ConvertTo32Bits(pFiBitmap);
+	}
+
 	if (fifDst != FIF_UNKNOWN)
 	{ 
 		auto dst = FreeImage_OpenMemory();
-		auto ok = FreeImage_SaveToMemory(fifDst, pFiBitmap, dst);
+		auto ok = FreeImage_SaveToMemory(fifDst, srcBitmap, dst);
 		BYTE* pData = NULL; 
 		FreeImage_AcquireMemory(dst, &pData, (DWORD*)&len);
 		auto pBuffer = new BYTE[len];
@@ -429,6 +435,9 @@ std::shared_ptr<BYTE[]> CImageViewerDoc::SaveImageToFile(const wchar_t* lpFileNa
 		FreeImage_CloseMemory(dst); 
 		data.reset(pBuffer);
 	}
+
+	if (srcBitmap != pFiBitmap)
+		FreeImage_Unload(srcBitmap);
 
 	if (bMultiBitmap)
 	{
